@@ -4,11 +4,11 @@ import sys
 import matplotlib.pyplot as plt
 import math
 
-camera_angle = np.radians(40)
-cam1_x = -0.2
-cam2_x = 0.2
+camera_angle = math.atan2(35.0, (2.0*50.0))*2.0
+cam1_x = 0
+cam2_x = 0.4
 sensor_size = 0.035
-cam2_angle = np.radians(0.0)
+cam2_angle = np.radians(10.0)
 
 l = 5
 
@@ -45,7 +45,13 @@ class Image_Stitching():
 
         good_points = []
         good_matches = []
+
         for m1, m2 in raw_matches:
+            #print("m1", m1.trainIdx, m1.queryIdx)
+            #print("m2", m2.trainIdx, m2.queryIdx)
+            #print("m1 dfdfd", m1.imgIdx, m1.imgIdx)
+            #print("m2 dfdfd", m2.imgIdx, m2.imgIdx)
+
             if m1.distance < self.ratio * m2.distance:
                 good_points.append((m1.trainIdx, m1.queryIdx))
                 good_matches.append([m1])
@@ -53,13 +59,10 @@ class Image_Stitching():
             img1, kp1, img2, kp2, good_matches, None, flags=2)
         cv2.imwrite('matching.jpg', img3)
 
-        if len(good_points) > self.min_match:
-            image1_kp = np.float32(
-                [kp1[i].pt for (_, i) in good_points])
-            image2_kp = np.float32(
-                [kp2[i].pt for (i, _) in good_points])
-
-        # cv2.normalize(H, H)
+        image1_kp = np.float32(
+            [kp1[i].pt for (_, i) in good_points])
+        image2_kp = np.float32(
+            [kp2[i].pt for (i, _) in good_points])
 
         x_ = []
         y_ = []
@@ -69,8 +72,16 @@ class Image_Stitching():
 
         for point1, point2 in zip(image1_kp, image2_kp):
 
-            angle1 = camera_angle*((point1[0])/img1.shape[1]-0.5)
-            angle2 = camera_angle*((point2[0])/img2.shape[1]-0.5)
+            angle_per_pix = camera_angle/img2.shape[1]
+
+            angle1 = angle_per_pix*(point1[0]-img2.shape[1]/2.0)
+            angle2 = angle_per_pix*(point2[0]-img2.shape[1]/2.0)
+
+            c_x = (img2.shape[1]/2.0)/(math.tan(camera_angle/2.0))
+            angle1 = math.atan((point1[0]-img2.shape[1]/2.0)/c_x)
+            angle2 = math.atan((point2[0]-img2.shape[1]/2.0)/c_x)
+            #angle1 = angle_per_pix*((point1[0]-img2.shape[1]/2)*(math.cos(angle1/1.3)))
+            #angle2 = angle_per_pix*((point2[0]-img2.shape[1]/2)*(math.cos(angle2/1.3)))
 
             line1 = [[cam1_x, 0],
                      [cam1_x + (l)*math.tan(angle1), l]]
@@ -78,13 +89,12 @@ class Image_Stitching():
                 cam2_x + (l)*math.tan(angle2-cam2_angle), l]]
 
             intersect = line_intersection(line1, line2)
-
-            plt.scatter(intersect[0], intersect[1], 1.5, linewidths="0.0")
+            plt.scatter(intersect[0], intersect[1], 3,
+                        linewidths=0.0, color="red")
             # plt.plot(line1, color='red')
             # plt.plot(line2, color='green')
 
-        H, status = cv2.findHomography(image2_kp, image1_kp, cv2.RANSAC, 5.0)
-        return H
+        return []
 
     def getComponents(self, normalised_homography):
         '''((translationx, translationy), rotation, (scalex, scaley), shear)'''
@@ -127,9 +137,9 @@ class Image_Stitching():
 
 
 if __name__ == '__main__':
-    img2 = cv2.imread('dots.png')
+    img2 = cv2.imread('data/stereoR/concrete.jpg')
     global calculated_angle
-    img1 = cv2.imread('dots_left.png')
+    img1 = cv2.imread('data/stereoL/concrete.jpg')
     img3 = cv2.imread('left_concrete_left.jpg')
     final = Image_Stitching().blending(img1, img2, img3)
     cv2.imwrite('stitch.jpg', final)
@@ -146,8 +156,8 @@ if __name__ == '__main__':
     plt.plot([cam2_x, cam2_x +
               l*math.tan(camera_angle/2-cam2_angle)], [0, l], color='black')
 
-    plt.xlim(-3, 3)
-    plt.ylim(0, 7)
+    plt.xlim(-1, 1.4)
+    plt.ylim(0, 4)
 
     plt.grid(linestyle='dotted')
 
