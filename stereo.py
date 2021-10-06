@@ -3,12 +3,16 @@ import numpy as np
 import sys
 import matplotlib.pyplot as plt
 import math
+import pptk
 
-camera_angle = math.atan2(35.0, (2.0*50.0))*2.0
+
+sensor_size = 0.036
+focal_length = 0.05
+camera_angle = math.atan2(sensor_size, (2.0*focal_length))*2.0
 cam1_x = 0
-cam2_x = 0.4
-sensor_size = 0.035
-cam2_angle = np.radians(10.0)
+cam2_x = 1
+
+cam2_angle = np.radians(20.0)
 
 l = 5
 
@@ -32,7 +36,7 @@ def line_intersection(line1, line2):
 
 class Image_Stitching():
     def __init__(self):
-        self.ratio = 0.9
+        self.ratio = 0.5
         self.min_match = 10
         self.sift = cv2.xfeatures2d.SIFT_create()
 
@@ -57,7 +61,7 @@ class Image_Stitching():
                 good_matches.append([m1])
         img3 = cv2.drawMatchesKnn(
             img1, kp1, img2, kp2, good_matches, None, flags=2)
-        cv2.imwrite('matching.jpg', img3)
+        cv2.imwrite('results/matching.jpg', img3)
 
         image1_kp = np.float32(
             [kp1[i].pt for (_, i) in good_points])
@@ -69,13 +73,8 @@ class Image_Stitching():
 
         num_cols = img1.shape[1]
         num_rows = img2.shape[0]
-
+        points = []
         for point1, point2 in zip(image1_kp, image2_kp):
-
-            angle_per_pix = camera_angle/img2.shape[1]
-
-            angle1 = angle_per_pix*(point1[0]-img2.shape[1]/2.0)
-            angle2 = angle_per_pix*(point2[0]-img2.shape[1]/2.0)
 
             c_x = (img2.shape[1]/2.0)/(math.tan(camera_angle/2.0))
             angle1 = math.atan((point1[0]-img2.shape[1]/2.0)/c_x)
@@ -93,7 +92,10 @@ class Image_Stitching():
                         linewidths=0.0, color="red")
             # plt.plot(line1, color='red')
             # plt.plot(line2, color='green')
+            points.append([intersect[0], intersect[1], 0])
 
+        # v = pptk.viewer(points)
+        # v.set(point_size=0.05)
         return []
 
     def getComponents(self, normalised_homography):
@@ -140,9 +142,9 @@ if __name__ == '__main__':
     img2 = cv2.imread('data/stereoR/concrete.jpg')
     global calculated_angle
     img1 = cv2.imread('data/stereoL/concrete.jpg')
-    img3 = cv2.imread('left_concrete_left.jpg')
+    img3 = cv2.imread('data/stereoL/concrete.jpg')
     final = Image_Stitching().blending(img1, img2, img3)
-    cv2.imwrite('stitch.jpg', final)
+    cv2.imwrite('results/stitch.jpg', final)
 
     print(img2.shape[1])
 
